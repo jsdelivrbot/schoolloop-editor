@@ -1,5 +1,5 @@
 
-var NAME = "Schoolloop Editor"
+var NAME = "Schoolloop Editor";
 var URL = window.location.href.split(/\/+|\./);
 var HTTP = URL[0];
 if(!URL[4] || URL[4] != "progress_report")
@@ -34,7 +34,7 @@ var constants =
 	assignmentName:"name",
 	assignmentMaxScore:"maxScore",
 	assignmentStudentScore:"studentScore"
-}
+};
 /*
 Functions that extract data from the schoolloop class page HTML
 
@@ -431,7 +431,7 @@ var DataHandling =
 		}
 		return categoryGrades;
 	}
-}
+};
 /*
 Requires:
 	- Retriever
@@ -519,7 +519,7 @@ var Builder = function(studentData)
 		this.categoryGrades[gradeIndex].id = category+"grade";
 
 		this.categoryContainers[containerIndex].innerHTML+="<br/>";
-	}
+	};
 	for(var i = 0;i<studentData.categoryPoints.length;i++)
 	{
 		this.addCategory(studentData.categoryPoints[i].cat);
@@ -535,7 +535,7 @@ var Builder = function(studentData)
 	{
 		grade = Math.round(grade*10000)/100;
 		this.currentGradeDisplay.innerHTML = "Grade: "+grade+"%<br/>";
-	}
+	};
 	this.updateTotalGradeDisplay(DataHandling.calculateTotalGrade(studentData,false));
 
 	/*
@@ -557,7 +557,7 @@ var Builder = function(studentData)
 			currentGrade = Math.round(currentGrade*10000)/100;
 			this.categoryGrades[i].innerHTML = categoryPoints[i].weight + "% - " + currentGrade + "%";
 		}
-	}
+	};
 	this.updateCategoryGradeDisplays(DataHandling.calculateCategoryGrades(this.dataRef),this.dataRef.categoryPoints);
 
 	/*
@@ -567,7 +567,7 @@ var Builder = function(studentData)
 	{
 		var grade = DataHandling.calculateTotalGrade(this.builder.dataRef,true,this.builder);
 		this.builder.updateTotalGradeDisplay(grade);
-	}
+	};
 	this.calculateGradeButton.onclick = this.calculateGradeClicked;
 
 	this.newAssignmentDiv = this.bottomContentDiv.appendChild(document.createElement("div"));
@@ -643,7 +643,7 @@ var Builder = function(studentData)
 			+percent+
 			'%</td><td class="list_text"><div style="width: 125px;"></div></td>';
 		this.assignmentTbl.appendChild(newAssignmentRow);
-	}
+	};
 	/*
 	Event function for when user clicks to add a new assignment
 	*/
@@ -656,7 +656,7 @@ var Builder = function(studentData)
 		this.builder.addAssignment(category,name,studentScore,maxScore);
 		this.builder.dataRef.reset();
 		this.builder.reset();
-	}
+	};
 	this.newAssignmentAddButton.onclick = this.addAssignmentButtonClicked;
 
 	/*
@@ -668,7 +668,7 @@ var Builder = function(studentData)
 		this.builder.deleteAssignment(this.rowNumber,this.builder);
 		this.builder.dataRef.reset();
 		this.builder.reset();
-	}
+	};
 	/*
 	Creates a delete button next to each assignment in the table and initializes them
 	*/
@@ -692,7 +692,7 @@ var Builder = function(studentData)
 			this.deleteButtons[i].builder = this;
 			this.deleteButtons[i].onclick = this.deleteButtonClicked;
 		}
-	}
+	};
 	this.createDeleteButtons();
 
 	/*
@@ -704,7 +704,7 @@ var Builder = function(studentData)
 	{
 		var assignmentRowToDelete = builder.assignmentTbl.children[assignmentNumber];
 		builder.realTrash.push(builder.realTrashHolder.appendChild(assignmentRowToDelete));
-	}
+	};
 	/*
 	Resets key features of the builder object -- useful for when adding new data
 	*/
@@ -740,8 +740,8 @@ var Builder = function(studentData)
 		this.updateTotalGradeDisplay(DataHandling.calculateTotalGrade(this.dataRef,true,this));
 		this.updateCategoryGradeDisplays(DataHandling.calculateCategoryGrades(this.dataRef),this.dataRef.categoryPoints);
 		this.createDeleteButtons();
-	}
-}
+	};
+};
 /*
 *Requires:
 	- Retriever
@@ -760,8 +760,8 @@ var StudentClassData = function()
 		this.assignments = Retriever.getAssignmentCollection();
 		this.categoryPoints = DataHandling.findCategoryPointsOf(this.assignments,this.weights);
 		this.totalWeight = DataHandling.findTotalWeightOf(this.weights);
-	}
-}
+	};
+};
 var studentData = new StudentClassData();
 var builder = new Builder(studentData);
 builder.reset();
