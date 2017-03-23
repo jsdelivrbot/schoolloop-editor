@@ -248,7 +248,7 @@ var Retriever =
 		for(var i = 0;i<assignmentTbl.children.length;i++)
 		{
 			assignmentCollection[i] = new Object();
-			assignmentCollection[i][constants.assignmentCategory] = this.getAssignmentCategory(assignmentTbl.children[i]);
+			assignmentCollection[i][constants.assignmentCategory] = this.getAssignmentCategory(assignmentTbl.children[i]).replace("&amp;","&");
 			assignmentCollection[i][constants.assignmentName] = this.getAssignmentName(assignmentTbl.children[i]);
 			assignmentCollection[i][constants.assignmentMaxScore] = this.getAssignmentScoreMax(assignmentTbl.children[i]);
 			assignmentCollection[i][constants.assignmentStudentScore] = this.getAssignmentScore(assignmentTbl.children[i]);
