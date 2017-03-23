@@ -337,7 +337,7 @@ var DataHandling =
 		}
 		for(var i = 0;i<assignments.length;i++)
 		{
-			var currentCategory = assignments[i][constants.assignmentCategory];
+			var currentCategory = assignments[i][constants.assignmentCategory].replace("&amp;","&");
 			var currentStudentPoints = assignments[i][constants.assignmentStudentScore];
 			var currentMaxPoints = assignments[i][constants.assignmentMaxScore];
 			for(var j = 0;j<categoryPoints.length;j++)
