@@ -181,7 +181,7 @@ var Retriever =
 	*/
 	getAssignmentCategory:function(assignmentRow)
 	{
-		return assignmentRow.children[0].children[0].innerText.split("\n")[0].trim();
+		return assignmentRow.children[0].children[0].innerText.split("\n")[0].trim().replace("&amp;","&");
 	},
 
 	/*
