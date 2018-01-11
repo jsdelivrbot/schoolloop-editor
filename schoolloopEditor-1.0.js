@@ -28,18 +28,24 @@ Constants to use in program
 */
 var constants = 
 {
-	weightsCategory:"Category",
-	weightsWeight:"Weight",
-	assignmentCategory:"Category",
-	assignmentName:"name",
+	assignmentCategory:"category",
+	assignmentDate:"date",
 	assignmentMaxScore:"maxScore",
-	assignmentStudentScore:"studentScore"
-};
+	assignmentName:"name",
+	assignmentStudentScore:"studentScore",
+	homeURL:"wilcox.schoolloop.com/portal/student_home",
+	notBuilt:-1,
+	stdURL:"wilcox.schoolloop.com",
+	weightTitle:"Weight",
+	weightsCategory:"Category",
+	weightScoreTitle:"Weight Score",
+	weightsWeight:"Weight"
+}
 /*
 Functions that extract data from the schoolloop class page HTML
 
 *Requires:
-	-
+	- Builder
 
 *Function List:
 	- getScoresTitles: Retrieves the HTML element of the titles in the box labeled "SCORES PER CATEGORY"
@@ -181,7 +187,7 @@ var Retriever =
 	*/
 	getAssignmentCategory:function(assignmentRow)
 	{
-		return assignmentRow.children[0].children[0].innerText.split("\n")[0].trim().replace("&amp;","&");
+		return assignmentRow.children[0].children[0].innerText.split("\n")[0].trim();
 	},
 
 	/*
@@ -248,12 +254,80 @@ var Retriever =
 		for(var i = 0;i<assignmentTbl.children.length;i++)
 		{
 			assignmentCollection[i] = new Object();
-			assignmentCollection[i][constants.assignmentCategory] = this.getAssignmentCategory(assignmentTbl.children[i]).replace("&amp;","&");
+			assignmentCollection[i][constants.assignmentCategory] = this.getAssignmentCategory(assignmentTbl.children[i]);
 			assignmentCollection[i][constants.assignmentName] = this.getAssignmentName(assignmentTbl.children[i]);
 			assignmentCollection[i][constants.assignmentMaxScore] = this.getAssignmentScoreMax(assignmentTbl.children[i]);
 			assignmentCollection[i][constants.assignmentStudentScore] = this.getAssignmentScore(assignmentTbl.children[i]);
 		}
 		return assignmentCollection;
+	},
+	/*
+	Gets the name of the class of the progress report
+	@return (String): class name
+	*/
+	getCurrentClassName:function(){
+		return document.getElementsByClassName("label1")[0].innerHTML.replace(":","");
+	},
+	/*
+	Creates/Assigns an array of objects of a student's upcoming assignments for that class and assigns it
+	@param (StudentClassData) dest: Destination for array; function will assign to dest.newAssignments
+		Object attributes:
+			-constants.assignmentCategory
+			-constants.assignmentName
+			-constants.assignmentMaxScore
+			-constants.assignmentDate
+	*/
+	getNewAssignments:function(dest){
+		var homeReq = new XMLHttpRequest();
+		homeReq.open("GET",HTTP+"//"+constants.homeURL);
+		homeReq.wantedClass = this.getCurrentClassName();
+		homeReq.assignmentCount = 0;
+		homeReq.dest = dest;
+		homeReq.onload = function()
+		{
+			this.parser = new DOMParser();
+			var homeDoc = this.parser.parseFromString(this.response, "text/html");
+			var assignmentList = homeDoc.getElementsByClassName("ajax_accordion_row jsTrackerRefresh");
+
+			this.assignmentCount = this.retAssignments = 0;
+			this.assignments = [];
+
+			for(var i = 0;i<assignmentList.length;++i)
+			{
+				var curChild = assignmentList[i];
+				var curChildClass = curChild.children[1].children[0].children[0].children[4].innerHTML.match(/\S+.{1,}/)[0];
+
+				if(curChildClass == this.wantedClass)
+				{
+					curChild.idNum = this.assignmentCount;
+					this.assignments[curChild.idNum] = new Object();
+					this.assignments[curChild.idNum][constants.assignmentName] = curChild.children[1].children[0].children[0].children[3].children[0].innerHTML.match(/\S+.{1,}/)[0];
+					this.assignments[curChild.idNum][constants.assignmentDate] = curChild.children[1].children[0].children[0].children[5].innerHTML.match(/(\S+.{1,})/)[0].replace("Due: ","");
+					
+					curChild.request = new XMLHttpRequest();
+					curChild.request.homeReq = this;
+					curChild.request.idNum = curChild.idNum;
+					curChild.request.open("GET",HTTP+"//"+constants.stdURL+curChild.children[0].attributes[2].nodeValue);
+					curChild.request.onload = function()
+					{
+						var childDoc = this.homeReq.parser.parseFromString(this.response, "text/html");
+						var maxScore = (childDoc.getElementsByClassName("text")[3])? parseFloat(childDoc.getElementsByClassName("text")[3].innerText.match(/(\S+.{1,})/)[0]) : 0;
+						var cat = (childDoc.getElementsByClassName("text")[4])? childDoc.getElementsByClassName("text")[4].innerText.match(/(\S+.{1,})/)[0] : 0;
+						this.homeReq.assignments[this.idNum][constants.assignmentMaxScore] = maxScore;
+						this.homeReq.assignments[this.idNum][constants.assignmentCategory] = cat;
+						if(++this.homeReq.retAssignments == this.homeReq.assignmentCount)
+						{
+							this.homeReq.dest.newAssignments = this.homeReq.assignments;
+							this.homeReq.dest.loadedNewAssignments();
+						}
+					}
+					curChild.request.send();
+
+					++this.assignmentCount;
+				}
+			}
+		}
+		homeReq.send();
 	}
 };
 
@@ -262,7 +336,7 @@ Functions that manipulate the data from the Retriever object
 
 *Requires:
 	- Retriever
-	- pageConstants
+	- constants
 	- Builder
 	- Student Data
 
@@ -284,7 +358,7 @@ var DataHandling =
 		{
 			return -1;
 		}
-		if(!weights[0][pageConstants.weightTitle]) //checks for weights
+		if(!weights[0][constants.weightTitle]) //checks for weights
 		{
 			return -1;
 		}
@@ -292,7 +366,7 @@ var DataHandling =
 		var totalWeight = 0;
 		for(var i = 0;i<weights.length;i++)
 		{
-			totalWeight+=parseFloat(weights[i][pageConstants.weightTitle]);
+			totalWeight+=parseFloat(weights[i][constants.weightTitle]);
 		}
 		return totalWeight;
 	},
@@ -337,7 +411,7 @@ var DataHandling =
 		}
 		for(var i = 0;i<assignments.length;i++)
 		{
-			var currentCategory = assignments[i][constants.assignmentCategory].replace("&amp;","&");
+			var currentCategory = assignments[i][constants.assignmentCategory];
 			var currentStudentPoints = assignments[i][constants.assignmentStudentScore];
 			var currentMaxPoints = assignments[i][constants.assignmentMaxScore];
 			for(var j = 0;j<categoryPoints.length;j++)
@@ -371,8 +445,8 @@ var DataHandling =
 					var currentCat = builder.categoryChecks[i].id;
 					for(var j = 0;j<studentData.categoryPoints.length;j++)
 					{
-						if(studentData.categoryPoints[i].cat == currentCat)
-							categories.push(studentData.categoryPoints[i]);
+						if(studentData.categoryPoints[j].cat == currentCat)
+							categories.push(studentData.categoryPoints[j]);
 					}
 				}
 			}
@@ -388,9 +462,27 @@ var DataHandling =
 		{
 			return 0;
 		}
-
-		var totalWeight = 0;
-		var totalGrade = 0;
+		if(typeof categories[0].weight != "string")
+		{
+			var totalWeight = 0;
+			var totalGrade = 0;
+			for(var i = 0;i<categories.length;i++)
+			{
+				if(categories[i].maxPoints == 0)
+				{
+					if(categories[i].studentPoints == 0)
+						continue;
+					categories[i].maxPoints = 1;
+				}
+				totalWeight+=categories[i].weight;
+				var catPercent = categories[i].studentPoints/categories[i].maxPoints;
+				totalGrade += catPercent * (categories[i].weight/100);
+			}
+			totalGrade = totalGrade * (1/totalWeight) * 100;
+			return totalGrade;
+		}
+		var totalStudentPoints = 0;
+		var totalMaxPoints = 0;
 		for(var i = 0;i<categories.length;i++)
 		{
 			if(categories[i].maxPoints == 0)
@@ -399,11 +491,10 @@ var DataHandling =
 					continue;
 				categories[i].maxPoints = 1;
 			}
-			totalWeight+=categories[i].weight;
-			var catPercent = categories[i].studentPoints/categories[i].maxPoints;
-			totalGrade += catPercent * (categories[i].weight/100);
+			totalStudentPoints+=categories[i].studentPoints;
+			totalMaxPoints+=categories[i].maxPoints;
 		}
-		totalGrade = totalGrade * (1/totalWeight) * 100;
+		totalGrade = totalStudentPoints/totalMaxPoints;
 		return totalGrade;
 	},
 
@@ -431,7 +522,7 @@ var DataHandling =
 		}
 		return categoryGrades;
 	}
-};
+}
 /*
 Requires:
 	- Retriever
@@ -440,6 +531,8 @@ Requires:
 */
 var Builder = function(studentData)
 {
+	studentData.builder = this;
+	studentData.built = true;
 	this.dataRef = studentData;
 	this.assignmentTbl = Retriever.getAssignmentTbl();
 
@@ -519,7 +612,7 @@ var Builder = function(studentData)
 		this.categoryGrades[gradeIndex].id = category+"grade";
 
 		this.categoryContainers[containerIndex].innerHTML+="<br/>";
-	};
+	}
 	for(var i = 0;i<studentData.categoryPoints.length;i++)
 	{
 		this.addCategory(studentData.categoryPoints[i].cat);
@@ -535,7 +628,7 @@ var Builder = function(studentData)
 	{
 		grade = Math.round(grade*10000)/100;
 		this.currentGradeDisplay.innerHTML = "Grade: "+grade+"%<br/>";
-	};
+	}
 	this.updateTotalGradeDisplay(DataHandling.calculateTotalGrade(studentData,false));
 
 	/*
@@ -555,9 +648,10 @@ var Builder = function(studentData)
 			}
 			currentGrade = currentGrade[0];
 			currentGrade = Math.round(currentGrade*10000)/100;
-			this.categoryGrades[i].innerHTML = categoryPoints[i].weight + "% - " + currentGrade + "%";
+			var weight = (typeof categoryPoints[i].weight == "string") ? "" : categoryPoints[i].weight+"% - ";
+			this.categoryGrades[i].innerHTML = weight + currentGrade + "%";
 		}
-	};
+	}
 	this.updateCategoryGradeDisplays(DataHandling.calculateCategoryGrades(this.dataRef),this.dataRef.categoryPoints);
 
 	/*
@@ -567,7 +661,7 @@ var Builder = function(studentData)
 	{
 		var grade = DataHandling.calculateTotalGrade(this.builder.dataRef,true,this.builder);
 		this.builder.updateTotalGradeDisplay(grade);
-	};
+	}
 	this.calculateGradeButton.onclick = this.calculateGradeClicked;
 
 	this.newAssignmentDiv = this.bottomContentDiv.appendChild(document.createElement("div"));
@@ -643,7 +737,7 @@ var Builder = function(studentData)
 			+percent+
 			'%</td><td class="list_text"><div style="width: 125px;"></div></td>';
 		this.assignmentTbl.appendChild(newAssignmentRow);
-	};
+	}
 	/*
 	Event function for when user clicks to add a new assignment
 	*/
@@ -656,7 +750,7 @@ var Builder = function(studentData)
 		this.builder.addAssignment(category,name,studentScore,maxScore);
 		this.builder.dataRef.reset();
 		this.builder.reset();
-	};
+	}
 	this.newAssignmentAddButton.onclick = this.addAssignmentButtonClicked;
 
 	/*
@@ -668,7 +762,7 @@ var Builder = function(studentData)
 		this.builder.deleteAssignment(this.rowNumber,this.builder);
 		this.builder.dataRef.reset();
 		this.builder.reset();
-	};
+	}
 	/*
 	Creates a delete button next to each assignment in the table and initializes them
 	*/
@@ -681,7 +775,7 @@ var Builder = function(studentData)
 		}
 		this.deleteButtons = [];
 
-		for(var i = 0;i<this.assignmentTbl.children.length;i++)
+		for(var i = 0;i<this.assignmentTbl.children.length;++i)
 		{
 			var currentRow = Retriever.getAssignmentNameElement(this.assignmentTbl.children[i]);
 
@@ -692,7 +786,7 @@ var Builder = function(studentData)
 			this.deleteButtons[i].builder = this;
 			this.deleteButtons[i].onclick = this.deleteButtonClicked;
 		}
-	};
+	}
 	this.createDeleteButtons();
 
 	/*
@@ -704,7 +798,53 @@ var Builder = function(studentData)
 	{
 		var assignmentRowToDelete = builder.assignmentTbl.children[assignmentNumber];
 		builder.realTrash.push(builder.realTrashHolder.appendChild(assignmentRowToDelete));
-	};
+	}
+
+	/*
+	*/
+	this.newAssignmentButtonClicked = function()
+	{
+		alert("fuck");
+	}
+
+	/*
+	*/
+	this.loadButtons = [];
+	this.upcomingAssignmentDiv = [];
+	this.upcAssDiv = document.createElement("div");
+	this.upcAssDiv.id = "upcomingAssignmentDiv";
+	document.body.appendChild(this.upcAssDiv);
+	this.buildNewAssignments = function()
+	{
+		this.upcAssDiv = document.getElementById("upcomingAssignmentDiv");
+		var div = this.upcAssDiv;
+		div.width = 325;
+		div.height = 400;
+		div.style.width = div.width+"px";
+		div.style.height = div.height+"px";
+		div.style.position = "fixed";
+		div.style.left = "0px";
+		div.style.top = "0px";
+		div.style.backgroundColor = "#FAF6DA";
+		div.style.padding = "5px";
+		div.style.zIndex = 9999999;
+		div.style.overflowY = "auto";
+		div.style.wordWrap = "break-word";
+		div.innerHTML = "<p style = 'font-size:20px;'>Upcoming Assignments:</p>";
+
+		var data = this.dataRef.newAssignments;
+		for(var i = 0;i<data.length;i++)
+		{
+			div.innerHTML+="<br/>";
+			var bttn = document.createElement("input");
+			bttn.type = "button";
+			bttn.value = "Load";
+			bttn.onclick = function(){alert("why?");};
+			console.log(bttn);
+			div.appendChild(bttn);
+		}
+	}
+
 	/*
 	Resets key features of the builder object -- useful for when adding new data
 	*/
@@ -714,7 +854,7 @@ var Builder = function(studentData)
 		/*
 		Crude Bug Fix:
 		For some reason the program can't edit the elements created when creating the builder object through their 
-		reference, so this redefine its references off of the document, and somehow that turns it from non-editable to
+		reference, so this redefines references off of the document, and somehow that turns it from non-editable to
 		editable
 		*/
 		this.newAssignmentDiv = document.getElementById(this.newAssignmentDiv.id);
@@ -740,16 +880,19 @@ var Builder = function(studentData)
 		this.updateTotalGradeDisplay(DataHandling.calculateTotalGrade(this.dataRef,true,this));
 		this.updateCategoryGradeDisplays(DataHandling.calculateCategoryGrades(this.dataRef),this.dataRef.categoryPoints);
 		this.createDeleteButtons();
-	};
-};
+	}
+}
 /*
 *Requires:
 	- Retriever
 	- DataHandling
-	- pageConstants
+	- constants
 */
 var StudentClassData = function()
 {
+	this.newAssignments = false;
+	this.built = false;
+	this.builder;
 	this.weights = Retriever.scoresCategoryCollection();
 	this.assignments = Retriever.getAssignmentCollection();
 	this.categoryPoints = DataHandling.findCategoryPointsOf(this.assignments,this.weights);
@@ -760,8 +903,16 @@ var StudentClassData = function()
 		this.assignments = Retriever.getAssignmentCollection();
 		this.categoryPoints = DataHandling.findCategoryPointsOf(this.assignments,this.weights);
 		this.totalWeight = DataHandling.findTotalWeightOf(this.weights);
-	};
-};
+	}
+	this.loadedNewAssignments = function()
+	{
+		if(!this.built)
+			return;
+		this.builder.buildNewAssignments();
+	}
+
+	Retriever.getNewAssignments(this);
+}
 var studentData = new StudentClassData();
 var builder = new Builder(studentData);
 builder.reset();
